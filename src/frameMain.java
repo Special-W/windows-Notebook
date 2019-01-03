@@ -13,10 +13,13 @@ public class frameMain extends JFrame implements ActionListener, MouseListener {
 	JMenuItem newfile, open, save, othersave, exit, revocation, cut, copy,
 	 paste, delete, find, findNext, replace, goTo, selectall, date, lineWrap,
 	 font, status, about;
-	JFrame frame;
-	JTextArea text;
+	Container frame = this.getContentPane();
+	static JTextArea text;
+	JPanel statusPanel;
+	JLabel statusLabel;
 	JFileChooser filedialog;
-	String filesavename, cutpaste;
+	String filesavename, cutpaste, statusText;
+	int textAreaCount, textAreaNum;
 	static UndoManager undomg = new UndoManager();
 	
 	public static void main(String[] args) {
@@ -25,8 +28,36 @@ public class frameMain extends JFrame implements ActionListener, MouseListener {
 	
 	public frameMain(){
 		
-		frame = new JFrame("Windows-Notebook");
+		this.addWindowListener(new WindowAdapter()
+    	{  
+    	      public void windowClosing( WindowEvent e )
+    	      { 
+    	    	  int result=JOptionPane.showConfirmDialog(null, "是否将更改的文件保存？", "记事本", JOptionPane.YES_NO_CANCEL_OPTION);
+    				if(result==JOptionPane.YES_OPTION)
+    				{
+    					othersave.doClick();
+    				}
+    				else if(result==JOptionPane.CANCEL_OPTION)
+    				{
+    				    return;
+    				}
+    			
+    	     }
+    	} );
+		
 		text = new JTextArea();
+		text.addKeyListener(new KeyAdapter() {
+			public void keyTyped(KeyEvent e)
+			{
+				textAreaCount = text.getLineCount();
+				textAreaNum = text.getText().length();
+				statusText = "行数：" + textAreaCount + "\t字数：" + textAreaNum;
+				statusLabel.setText(statusText);
+			}
+		});
+		
+		statusLabel = new JLabel();
+		statusPanel = new JPanel();
 		filedialog = new JFileChooser(".");
 		
 		menubar = new JMenuBar();
@@ -111,45 +142,59 @@ public class frameMain extends JFrame implements ActionListener, MouseListener {
 		
 		findNext = new JMenuItem("查找下一处(N)");
 		findNext.setMnemonic('N');
+		findNext.addActionListener(this);
 		
 		replace = new JMenuItem("替换(R)");
 		replace.setMnemonic('R');
+		replace.addActionListener(this);
 		
 		goTo = new JMenuItem("转到(G)");
 		goTo.setMnemonic('G');
+		goTo.addActionListener(this);
 		
 		selectall = new JMenuItem("全选(A)");
 		selectall.setMnemonic('A');
+		selectall.addActionListener(this);
 		
 		date = new JMenuItem("时间/日期(D)");
 		date.setMnemonic('D');
+		date.addActionListener(this);
 		
 		lineWrap = new JMenuItem("自动换行(W)");
 		lineWrap.setMnemonic('W');
+		lineWrap.addActionListener(this);
 		
 		font = new JMenuItem("字体(F)");
 		font.setMnemonic('F');
+		font.addActionListener(this);
 		
 		status = new JMenuItem("状态栏(S)");
 		status.setMnemonic('S');
+		status.addActionListener(this);
 		
 		about = new JMenuItem("关于记事本(A)");
 		about.setMnemonic('A');
+		about.addActionListener(this);
 		
 		file.add(newfile);
 		file.add(open);
+		file.addSeparator();
 		file.add(save);
 		file.add(othersave);
+		file.addSeparator();
 		file.add(exit);
 		compile.add(revocation);
+		compile.addSeparator();
 		compile.add(cut);
 		compile.add(copy);
 		compile.add(paste);
 		compile.add(delete);
+		compile.addSeparator();
 		compile.add(find);
 		compile.add(findNext);
 		compile.add(replace);
 		compile.add(goTo);
+		compile.addSeparator();
 		compile.add(selectall);
 		compile.add(date);
 		format.add(lineWrap);
@@ -163,11 +208,21 @@ public class frameMain extends JFrame implements ActionListener, MouseListener {
 		menubar.add(check);
 		menubar.add(help);
 		
-		frame.setJMenuBar(menubar);
-		frame.add(new JScrollPane(text));
-		frame.setBounds(50, 50, 600, 500);
-		frame.setVisible(true);
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		textAreaCount = text.getLineCount();
+		textAreaNum = text.getText().length();
+		statusText = "行数：" + textAreaCount + "字数：" + textAreaNum;
+		statusLabel.setText(statusText);
+		statusPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+		statusPanel.add(statusLabel);
+		statusPanel.setVisible(false);
+		
+		frame.add(menubar, BorderLayout.NORTH);
+		frame.add(new JScrollPane(text), BorderLayout.CENTER);
+		frame.add(statusPanel, BorderLayout.SOUTH);
+		this.setTitle("未命名.txt");
+		this.setBounds(50, 50, 600, 500);
+		this.setVisible(true);
+		
 	}
 
 	@Override
@@ -215,7 +270,8 @@ public class frameMain extends JFrame implements ActionListener, MouseListener {
 			{
 			   return;
 			}
-			frameMain.this.setTitle("");
+			filesavename = null;
+			frameMain.this.setTitle("未命名.txt");
 			text.setText(null);
 		}
 		
@@ -238,6 +294,7 @@ public class frameMain extends JFrame implements ActionListener, MouseListener {
 	          	try
 	          	{
 	          		text.setText(null);
+	          		
 	          		File file = filedialog.getSelectedFile();
 	          		
 	          		filesavename = file.getName(); 
@@ -263,47 +320,49 @@ public class frameMain extends JFrame implements ActionListener, MouseListener {
 	          }
 	  	}
 		
-		if(e.getSource() == save && filesavename != null)		//保存
+		if(e.getSource() == save || e.getSource() == othersave)		//保存
         {
-           try
-           {
-        	   FileWriter fw = new FileWriter(filesavename);
-               fw.write(text.getText());                
-               fw.close();
-               frameMain.this.setTitle(filesavename);
-           }catch(Exception  ex)
-           {
-               ex.printStackTrace();
-           }
-        }
+			if(filesavename != null) {
+				try
+				{
+					FileWriter fw = new FileWriter(filesavename);
+					fw.write(text.getText());                
+					fw.close();
+					frameMain.this.setTitle(filesavename);
+				}catch(Exception  ex)
+				{
+					ex.printStackTrace();
+				}
+			}
 		
-		if(e.getSource() == othersave || (e.getSource() == save && filesavename == null))		//另存为
-	  	{
+			if(filesavename == null)		//另存为
+			{
 	  		
-		 if(filedialog.showSaveDialog(this) == JFileChooser.APPROVE_OPTION)
-         {
-	          	try
-	          	{
-	          		File file = filedialog.getSelectedFile();
+				if(filedialog.showSaveDialog(this) == JFileChooser.APPROVE_OPTION)
+				{
+					try
+					{
+						File file = filedialog.getSelectedFile();
 	          		
-	                filesavename = file.getName();
-	          		
-	          		FileWriter tofile = new FileWriter(file);
+						filesavename = file.getName();
+						
+						FileWriter tofile = new FileWriter(file);
                     
-	          		String s = text.getText();
+						String s = text.getText();
                    
-                   tofile.write(s);
+						tofile.write(s);
                    
-                    tofile.close();
+						tofile.close();
                     
-                    frameMain.this.setTitle(filesavename);
-	          	}
-	          	catch(Exception e2)
-	          	{
-	          		System.out.println(e.toString());
-	          	}
-         }
-	  	}
+						frameMain.this.setTitle(filesavename);
+					}
+					catch(Exception e2)
+					{
+						System.out.println(e.toString());
+					}
+				}
+			}
+        }
 		
 		if(e.getSource() == exit)
 		{
@@ -352,6 +411,53 @@ public class frameMain extends JFrame implements ActionListener, MouseListener {
 			} else {
 				JOptionPane.showMessageDialog(null, "没有选择任何内容");
 			}
+		}
+		
+		if(e.getSource() == find || e.getSource() == findNext || e.getSource() == replace) {
+			new FindAndReplace(text);
+		}
+		
+		if(e.getSource() == goTo) {
+			zhuandao z = new zhuandao(frameMain.this,"转到行",true);
+			z.setVisible(true);
+		}
+		
+		if(e.getSource() == selectall) {
+			text.selectAll();
+		}
+		
+		if(e.getSource() == date) {
+			// 获得当前光标位置  
+			int cur = text.getCaretPosition();  
+			// 得到光标之后的字符串  
+			String tailString = text.getText().substring(cur);  
+			// 得到光标之前的字符串  
+			String headString = text.getText().substring(0,cur);  
+			// 拼接字符串 并输出  
+			text.setText(headString + new timeinfor().temptime2 + tailString); 
+		}
+		
+		if(e.getSource() == lineWrap)
+		{
+			text.setLineWrap(true);
+      		JOptionPane.showMessageDialog(null, "系统已根据窗口的大小进行换行");
+		}
+		
+		if(e.getSource() == font)
+		{
+			Fontdialogd di=new Fontdialogd(null,"字体",true);
+			di.setVisible(true);
+		}
+		
+		if(e.getSource() == status)
+		{
+			statusPanel.setVisible(true);
+		}
+		
+		if(e.getSource() == about)
+		{
+			String s = "java windows-Notebook \n \t\t20181227";
+			JOptionPane.showMessageDialog(null, s, "about", JOptionPane.PLAIN_MESSAGE);
 		}
 		
 	}
